@@ -1,19 +1,19 @@
 #!/usr/bin/env ruby
-# build
+# ci
 
 # 20200206
-# 0.0.0
+# 0.1.0
 
 # Usage:
-# 1. build
-# 2. build <branch_name>
+# 1. ci
+# 2. ci <branch_name>
 
 # Examples:
 # 1. Assume that we are inside the git repository and that the branch is thoran/feature/awesome...
-# $ build
+# $ ci
 # => open https://buildkite.com/buildkite_username/buildkite_repository/builds?branch=thoran%2Ffeature%2Fawesome
 # 2. Assume that we are inside the git repository and that the branch is thoran/feature/awesome, we can still open a different branch by supplying that...
-# $ build master
+# $ ci master
 # => open https://buildkite.com/buildkite_username/buildkite_repository/builds?branch=master
 
 # Notes:
