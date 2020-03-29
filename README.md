@@ -4,6 +4,13 @@
 
 Easily open a build of either the current branch or a nominated branch in your CI tool.
 
+## Installation
+
+```shell
+$ brew tap thoran/tap
+$ brew install ci
+```
+
 ## Usage
 
 Open the current branch (only in Buildkite for now)
