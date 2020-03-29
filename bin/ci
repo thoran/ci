@@ -1,12 +1,15 @@
 #!/usr/bin/env ruby
 # ci
 
-# 20200212
-# 0.1.1
+# 20200329
+# 0.1.2
 
 # Usage:
 # 1. ci
 # 2. ci <branch_name>
+
+# Changes:
+# 1. Finally, actually implemented the ability to specify a branch name.
 
 # Examples:
 # 1. Assume that we are inside the git repository and that the branch is thoran/feature/awesome...
@@ -17,7 +20,7 @@
 # => open https://buildkite.com/buildkite_username/buildkite_repository/builds?branch=master
 
 # Notes:
-# 1. This assumes that the repository url is of the form hostname:username/repository_ame.
+# 1. This assumes that the repository url is of the form hostname:username/repository_name.
 # 2. This assumes that the Github username and the Buildkite username are the same.
 # 3. It also assumes that the Github repository name and the Buildkite repository name are the same, but this is a fairly safe assumption.
 # 4. Finally, it also (for now) only works with Buildkite.
@@ -26,16 +29,24 @@ require 'Git/Branch'
 require 'Git/Remote'
 require 'ImpURI'
 
+def supplied_branch_argument
+  ARGV[0]
+end
+
+def default_branch_argument
+  Git::Branch.current.to_s.gsub(/\//, '%2F')
+end
+
+def branch_argument
+  supplied_branch_argument || default_branch_argument
+end
+
 def origin_url
   Git::Remote.find('origin').url
 end
 
 def path_sans_extension
   ImpURI.parse(origin_url).path.sub(/\.git$/, '')
-end
-
-def branch_argument
-  Git::Branch.current.to_s.gsub(/\//, '%2F')
 end
 
 def parameters
