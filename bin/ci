@@ -1,34 +1,29 @@
 #!/usr/bin/env ruby
 # ci
 
-# 20200329
-# 0.1.3
+# 20230327
+# 0.2.0
 
 # Usage:
 # 1. ci
 # 2. ci <branch_name>
 
-# Changes:
-# 0/1
-# 1. + README.md and some additional notes.
-# 1/2
-# 2. Finally, actually implemented the ability to specify a branch name.
-# 2/3
-# 3. ~ README.md with installation instructions as there is now a Homebrew formula.
+# Changes since 0.1:
+# 1 + CircleCI.
 
 # Examples:
 # 1. Assume that we are inside the git repository and that the branch is thoran/feature/awesome...
 # $ ci
-# => open https://buildkite.com/buildkite_username/buildkite_repository/builds?branch=thoran%2Ffeature%2Fawesome
+# => open https://buildkite.com/username/repository/builds?branch=thoran%2Ffeature%2Fawesome
 # 2. Assume that we are inside the git repository and that the branch is thoran/feature/awesome, we can still open a different branch by supplying that...
 # $ ci master
-# => open https://buildkite.com/buildkite_username/buildkite_repository/builds?branch=master
+# => open https://buildkite.com/username/repository/builds?branch=master
 
 # Notes:
 # 1. This assumes that the repository url is of the form hostname:username/repository_name.
-# 2. This assumes that the Github username and the Buildkite username are the same.
-# 3. It also assumes that the Github repository name and the Buildkite repository name are the same, but this is a fairly safe assumption.
-# 4. Finally, it also (for now) only works with Buildkite.
+# 2. This assumes that the Github username and the Buildkite/CircleCI username are the same.
+# 3. This assumes that the Github repository name and the Buildkite/CircleCI repository name are the same, but this is a fairly safe assumption.
+# 4. This assumes macOS at least, but any other OS that has the program `open` for use on the command line to open URIs.
 
 require 'Git/Branch'
 require 'Git/Remote'
@@ -50,6 +45,14 @@ def origin_url
   Git::Remote.find('origin').url
 end
 
+def repo_host
+  ImpURI.parse(origin_url).host
+end
+
+def repo_host_sans_tld
+  repo_host.split('.').first
+end
+
 def path_sans_extension
   ImpURI.parse(origin_url).path.sub(/\.git$/, '')
 end
@@ -64,17 +67,33 @@ def buildkite_build_url
   ['https://buildkite.com', path_sans_extension, 'builds'].join('/') + '?' + parameters.join('&')
 end
 
-def buildkite?
+def circleci_build_url
+  ['https://app.circleci.com', 'pipelines', repo_host_sans_tld, path_sans_extension].join('/') + '?' + parameters.join('&')
+end
+
+# predicate methods
+
+def ci_service_is?(candidate_ci_service)
   repository_root = `git rev-parse --show-toplevel`.strip
-  candidate_buildkite_directory = [repository_root, '.buildkite'].join('/')
-  File.exist?(candidate_buildkite_directory)
+  candidate_directory = [repository_root, ".#{candidate_ci_service}"].join('/')
+  File.exist?(candidate_directory)
+end
+
+def buildkite?
+  ci_service_is?('buildkite')
+end
+
+def circleci?
+  ci_service_is?('circleci')
 end
 
 def main
   if buildkite?
     system("open #{buildkite_build_url}")
+  elsif circleci?
+    system("open #{circleci_build_url}")
   else
-    puts "This supports only Buildkite for now."
+    puts "This supports only Buildkite and CircleCIfor now."
   end
 end
 

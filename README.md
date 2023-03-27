@@ -13,13 +13,13 @@ $ brew install ci
 
 ## Usage
 
-Open the current branch (only in Buildkite for now)
+Open the current branch (only in Buildkite or CircleCI for now)
 
 ```shell
 $ ci
 ```
 
-Open a branch other than the current branch (also only in Buildkite for now)
+Open a branch other than the current branch (also only in Buildkite or CircleCI for now)
 
 ```shell
 $ ci other/branch/name
