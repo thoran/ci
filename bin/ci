@@ -1,15 +1,22 @@
 #!/usr/bin/env ruby
 # ci
 
-# 20230327
-# 0.2.0
+# 20230816
+# 0.3.0
 
 # Usage:
 # 1. ci
 # 2. ci <branch_name>
 
-# Changes since 0.1:
-# 1 + CircleCI.
+# Changes since 0.2:
+# -/0: Add some object goodness.
+# 1. + CIService class.
+# 2. + Buildkite class.
+# 3. + CircleCI class.
+# 4. + ci_service()
+# 5. ci_service_is? ~-> CIService#detect
+# 6. ~ buildkite?(), so as to use ci_service.
+# 7. ~ circleci?(), so as to use ci_service.
 
 # Examples:
 # 1. Assume that we are inside the git repository and that the branch is thoran/feature/awesome...
@@ -29,6 +36,54 @@ require 'Git/Branch'
 require 'Git/Remote'
 require 'ImpURI'
 
+class CIService
+  def initialize(branch:)
+    @branch = branch
+  end
+
+  def origin_url
+    Git::Remote.find('origin').url
+  end
+
+  def parameters
+    [
+      "branch=#{@branch}"
+    ]
+  end
+
+  def path_sans_extension
+    ImpURI.parse(origin_url).path.sub(/\.git$/, '')
+  end
+
+  def repo_host
+    ImpURI.parse(origin_url).host
+  end
+
+  def repo_host_sans_tld
+    repo_host.split('.').first
+  end
+
+  def detect
+    %w{buildkite circleci}.each do |candidate_ci_service|
+      repository_root = `git rev-parse --show-toplevel`.strip
+      candidate_directory = [repository_root, ".#{candidate_ci_service}"].join('/')
+      return candidate_ci_service if File.exist?(candidate_directory)
+    end
+  end
+end
+
+class Buildkite < CIService
+  def build_url
+    ['https://buildkite.com', path_sans_extension, 'builds'].join('/') + '?' + parameters.join('&')
+  end
+end
+
+class CircleCI < CIService
+  def build_url
+    ['https://app.circleci.com', 'pipelines', repo_host_sans_tld, path_sans_extension].join('/') + '?' + parameters.join('&')
+  end
+end
+
 def supplied_branch_argument
   ARGV[0]
 end
@@ -41,59 +96,27 @@ def branch_argument
   supplied_branch_argument || default_branch_argument
 end
 
-def origin_url
-  Git::Remote.find('origin').url
-end
-
-def repo_host
-  ImpURI.parse(origin_url).host
-end
-
-def repo_host_sans_tld
-  repo_host.split('.').first
-end
-
-def path_sans_extension
-  ImpURI.parse(origin_url).path.sub(/\.git$/, '')
-end
-
-def parameters
-  [
-    "branch=#{branch_argument}"
-  ]
-end
-
-def buildkite_build_url
-  ['https://buildkite.com', path_sans_extension, 'builds'].join('/') + '?' + parameters.join('&')
-end
-
-def circleci_build_url
-  ['https://app.circleci.com', 'pipelines', repo_host_sans_tld, path_sans_extension].join('/') + '?' + parameters.join('&')
+def ci_service
+  @ci_service ||= CIService.new(branch: branch_argument).detect
 end
 
 # predicate methods
 
-def ci_service_is?(candidate_ci_service)
-  repository_root = `git rev-parse --show-toplevel`.strip
-  candidate_directory = [repository_root, ".#{candidate_ci_service}"].join('/')
-  File.exist?(candidate_directory)
-end
-
 def buildkite?
-  ci_service_is?('buildkite')
+  ci_service == 'buildkite'
 end
 
 def circleci?
-  ci_service_is?('circleci')
+  ci_service == 'circleci'
 end
 
 def main
   if buildkite?
-    system("open #{buildkite_build_url}")
+    system("open #{Buildkite.new.build_url}")
   elsif circleci?
-    system("open #{circleci_build_url}")
+    system("open #{CircleCI.new.build_url}")
   else
-    puts "This supports only Buildkite and CircleCIfor now."
+    puts "This supports only Buildkite and CircleCI for now."
   end
 end
 
