@@ -2,21 +2,22 @@
 # ci
 
 # 20230816
-# 0.3.0
+# 0.4.0
 
 # Usage:
 # 1. ci
 # 2. ci <branch_name>
 
-# Changes since 0.2:
-# -/0: Add some object goodness.
-# 1. + CIService class.
-# 2. + Buildkite class.
-# 3. + CircleCI class.
-# 4. + ci_service()
-# 5. ci_service_is? ~-> CIService#detect
-# 6. ~ buildkite?(), so as to use ci_service.
-# 7. ~ circleci?(), so as to use ci_service.
+# Changes since 0.3:
+# -/0: Add Travis.
+# 1. + Travis
+# 2. ~ CIService#detect: + travis
+# 3. /ci_service()/ci_service_name()/
+# 4. ~ buildkite?(): /ci_service/ci_service_name/
+# 5. ~ circleci?(): /ci_service/ci_service_name/
+# 6. ~ travis?(): /ci_service/ci_service_name/
+# 7. ~ main(): elsif travis?...
+# 8. ~ main(): + branch_argument
 
 # Examples:
 # 1. Assume that we are inside the git repository and that the branch is thoran/feature/awesome...
@@ -64,10 +65,16 @@ class CIService
   end
 
   def detect
-    %w{buildkite circleci}.each do |candidate_ci_service|
+    %w{buildkite circleci travis}.each do |candidate_ci_service_name|
       repository_root = `git rev-parse --show-toplevel`.strip
-      candidate_directory = [repository_root, ".#{candidate_ci_service}"].join('/')
-      return candidate_ci_service if File.exist?(candidate_directory)
+      case candidate_ci_service_name
+      when 'buildkite', 'circleci'
+        candidate_directory = [repository_root, ".#{candidate_ci_service_name}"].join('/')
+        return candidate_ci_service_name if File.exist?(candidate_directory)
+      when 'travis'
+        candidate_filename = [repository_root, ".#{candidate_ci_service_name}.yml"].join('/')
+        return candidate_ci_service_name if File.exist?(candidate_filename)
+      end
     end
   end
 end
@@ -84,6 +91,12 @@ class CircleCI < CIService
   end
 end
 
+class Travis < CIService
+  def build_url
+    ['https://app.travis-ci.com', repo_host_sans_tld, path_sans_extension].join('/')
+  end
+end
+
 def supplied_branch_argument
   ARGV[0]
 end
@@ -96,27 +109,33 @@ def branch_argument
   supplied_branch_argument || default_branch_argument
 end
 
-def ci_service
-  @ci_service ||= CIService.new(branch: branch_argument).detect
+def ci_service_name
+  @ci_service_name ||= CIService.new(branch: branch_argument).detect
 end
 
 # predicate methods
 
 def buildkite?
-  ci_service == 'buildkite'
+  ci_service_name == 'buildkite'
 end
 
 def circleci?
-  ci_service == 'circleci'
+  ci_service_name == 'circleci'
+end
+
+def travis?
+  ci_service_name == 'travis'
 end
 
 def main
   if buildkite?
-    system("open #{Buildkite.new.build_url}")
+    system("open #{Buildkite.new(branch: branch_argument).build_url}")
   elsif circleci?
-    system("open #{CircleCI.new.build_url}")
+    system("open #{CircleCI.new(branch: branch_argument).build_url}")
+  elsif travis?
+    system("open #{Travis.new(branch: branch_argument).build_url}")
   else
-    puts "This supports only Buildkite and CircleCI for now."
+    puts "This supports only Buildkite, CircleCI, and Travis for now."
   end
 end
 
